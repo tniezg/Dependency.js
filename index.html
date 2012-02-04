@@ -1,0 +1,9 @@
+Dependency example.
+<script src="Dependency.js"></script>
+<script>
+Dependency.fulfill({require:'com.niezgoda.dependencyExample.dep1',complete:function(){
+	alert('dependencies fulfilled');
+}});
+
+// (new Dependency.get('com.niezgoda.dependencyExample.dep1')).foo();
+</script>
