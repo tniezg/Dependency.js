@@ -1,24 +1,53 @@
 /**/
 Dependency=new function(){
 	//private variables
-	/*Adds a parent to an existing node. When node changes then all its parents' callbacks will be called using checkLoading.*/
-	var addParent=function(node,parent){
-		
-	}
-	var hasDependencies=function(node){
-		return !node.dependencies;
-	}
 	/*Contains information about loaded, loading and problems when loading packages and it's dependencies.
 	Every file loaded will be added to the tree only once.*/
-	var root={status:'loaded',content:null,parents:null,children:null,callbacks:null};
+	var root={status:'loaded',content:null,parents:null,children:null,callbacks:null,package:null};
 	//private functions
-	/*Creates a node and attaches it to the tree. If called without any parameters then the node will be completely detached from the tree.*/
+	/*Adds a parent to an existing node. When node changes then all its parents' callbacks will be called using checkLoading.*/
+	var addParent=function(node,parent){
+		if(node.parents==null){
+			node.parents=[parent];
+		}else{
+			node.parents.push(parent);
+		}
+		if(parent.children==null){
+			parent.children=[node];
+		}else{
+			parent.children.push(node);
+		}
+	}
+	var hasDependencies=function(node){
+		return node.children!=null;
+	}
+	/*Creates a node and attaches it to the tree. If called without any parameters then the node will be completely detached from the tree.
+	If baseNode is null, then attached to the root directly.*/
 	var addNode=function(baseNode,package){
-		
+		var node=new Object();
+		var base;
+		if(baseNode==null){
+			base=root;
+		}else{
+			base=baseNode;
+		}
+		node.package=package;
+		addParent(node,base);
 	}
 	/*Called by children when their status changes.*/
 	var checkLoading=function(node){
 		/*Check status of dependencies of the node. If all are fulfilled then change status to 'loaded' or 'error' and run all callbacks.*/
+		if(!hasDependencies(node)){
+			node.status='loaded';
+			announce(node);
+			if(node.parents!=null){
+				for(var index;index<node.parents.length;index++){
+					checkLoading(nodex.parents[index]);
+				}
+			}
+		}else{
+			
+		}
 			//check dependencies status.
 			//...announce(node);
 		
@@ -33,10 +62,10 @@ Dependency=new function(){
 	}
 	/*Registers a callback function with a node. Children will call the callbacks when their status changes.*/
 	var callbackNode=function(node){
-		if(!node.callbacks){
+		if(node.callbacks==null){
 			node.callbacks=[function(){checkLoading(node)}];
 		}else{
-			node.callbacks.unshift(function(){checkLoading(node));
+			node.callbacks.push(function(){checkLoading(node));
 		}
 	}
 	/*Adds a callback function to a loading package, so you can hookup multiple scripts that are dependent on
@@ -46,7 +75,7 @@ Dependency=new function(){
 	}
 	/*Parses the given string to a filepath.*/
 	var parse=function(package){
-		
+		return package.split('.').join('/')+'.js';
 	}
 	/*Searches for a specific node that was loaded and returns it.*/
 	var namespaceNode=function(package){
@@ -138,7 +167,7 @@ Dependency=new function(){
 	this.namespace=function(package){
 		
 	}
-	/*Removes a loaded package along with it's dependencies. Stops loading of those packages if it's necessary.
+	/*Removes a loaded package along with it's dependencies if they are not used in other packages. Stops loading of those packages if it's necessary.
 	If a user requests one of them again, the required files will be loaded again.*/
 	this unload=function(package){
 		
