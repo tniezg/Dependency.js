@@ -57,6 +57,50 @@ Dependency=new function(){
 	var announce=function(node){
 		
 	}
+	/*Having a parent node created, manage all the necessary dependencies.*/
+	var completeTree=function(parentNode,settings){
+		parentNode.content=settings.content;
+		if(!settings.dependencies){
+			/*No dependencies either, just run content.*/
+			settings.content();
+		}else{
+			/*Anonymous parent node will control loading of its children.*/
+			callbackNode(parentNode);
+			/*There are dependencies. Search for them in the tree and add nodes if they do not exist. If they exist, add callbacks only.*/
+			for(var index=0;index<settings.dependencies.length;index++){
+				var node;
+				if((node=namespaceNode(settings.dependencies[index]))==null){
+					/*This package was not requested yet, create a node for it and load it.*/
+					node=addNode(parentNode,settings.dependencies[index]);
+					node.status='loading';
+					/*Load file.*/
+					jQuery.ajax({
+						dataType:'script',
+						url:parse(settings.dependencies[index]),
+						complete:function(data){
+							/*Check if the dependency created any new nodes(deeper dependencies). If not then check the status to "loaded"*/
+							if(!hasDependencies(node)){
+								checkLoading(node);
+							}
+						},
+						error:function(jqXHR,textStatus,errorThrown){
+							settings.dependencies[index].status="error";
+							checkLoading(node);
+						}
+					});
+				}else{
+					/*This node already exists, add a new parent to it if it's still loading. If it is not loading
+					then call content*/
+					if(node.status=='loading'){
+						addParent(node,parentNode);
+					}else{
+						announce(node);
+					}
+				}
+			}
+		}
+	}
+	
 	//public functions
 	/*Called when a dependency exists between javascript files. Can be called with a list of dependent files
 	and they will be loaded asynchronously, all at once. After loading completes or fails the caller gets notified
@@ -68,66 +112,20 @@ Dependency=new function(){
 			but a script. Scripts loading process unlike constructors cannot be traced by multiple callbacks. It's not
 			kept on the tree at all but executed immediately and cannot be executed again. That is why we will add callbacks
 			to all of the dependencies and when they're all loaded execute the script.*/
-			if(!settings.dependencies){
-				/*No dependencies either, just run content.*/
-				settings.content();
-			}else{
-				/*Create anonymous main node to control loading of children.*/
-				var parentNode=addNode();
-				callbackNode(parentNode);
-				/*There are dependencies. Search for them in the tree and add nodes if they do not exist. If they exist, add callbacks only.*/
-				for(var index=0;index<settings.dependencies.length;index++){
-					var node;
-					if((node=namespaceNode(settings.dependencies[index]))==null){
-						/*This package was not requested yet, create a node for it and load it.*/
-						node=addNode(parentNode,settings.dependencies[index]);
-						node.status='loading';
-						/*Load file.*/
-						jQuery.ajax({
-							dataType:'script',
-							url:parse(settings.dependencies[index]),
-							complete:function(data){
-								/*Check if the dependency created any new nodes(deeper dependencies). If not then check the status to "loaded"*/
-								if(!hasDependencies(node)){
-									checkLoading(node);
-								}
-							},
-							error:function(jqXHR,textStatus,errorThrown){
-								settings.dependencies[index].status="error";
-								checkLoading(node);
-							}
-						});
-					}else{
-						/*This node already exists, add a new parent to it if it's still loading. If it is not loading
-						then call content*/
-						if(node.status=='loading'){
-							addParent(node,parentNode);
-						}else{
-							announce(node);
-						}
-					}
-				}
-			}
+			/*Create an anonymous node. It will not be connected with the tree.*/
+			var parentNode=addNode();
+			completeTree(parentNode,settings);
 		}else{
 			/*settings.base specified, search for it on the tree and either return the content if it's loaded or add a
 			callback if it's still being loaded.*/
-			if(namespaceNode(settings.base)==null){
-				
-				
-				
-				
-				
-				
-				
-			}else{
-				
-				
-				
-				
-				
-				
-				
+			var parentNode=namespaceNode(settings.base);
+			if(parentNode==null){
+				/*settings.base not on the tree yet. Add it and load. Some of it's children might already be present on the
+				tree, so check each of them and add the missing ones. For others - check if they're loading and either attach
+				a callback or just make them announce that they're already loaded or had an error loading.*/
+				parentNode=addNode(null,settings.base);
 			}
+			completeTree(parentNode,settings);
 		}
 	}
 	/*Stop ajax loading of dependent files for a specific script. Can be used for example when the user switches pages
