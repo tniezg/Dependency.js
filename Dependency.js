@@ -3,7 +3,7 @@ Dependency=new function(){
 	//private variables
 	/*Contains information about loaded, loading and problems when loading packages and it's dependencies.
 	Every file loaded will be added to the tree only once.*/
-	var root={status:'loaded',content:null,parents:null,children:null,callbacks:null,package:null};
+	var root={status:'loaded',content:null,parents:null,children:null,package:null};
 	//private functions
 	/*Adds a parent to an existing node. When node changes then all its parents' callbacks will be called using checkLoading.*/
 	var addParent=function(node,parent){
@@ -34,44 +34,39 @@ Dependency=new function(){
 		node.package=package;
 		addParent(node,base);
 	}
+	var checkParentsLoading=function(node){
+		if(node.parents!=null){
+			for(var index;index<node.parents.length;index++){
+				checkLoading(nodex.parents[index]);
+			}
+		}		
+	}
 	/*Called by children when their status changes.*/
 	var checkLoading=function(node){
 		/*Check status of dependencies of the node. If all are fulfilled then change status to 'loaded' or 'error' and run all callbacks.*/
-		if(!hasDependencies(node)){
-			node.status='loaded';
-			announce(node);
-			if(node.parents!=null){
-				for(var index;index<node.parents.length;index++){
-					checkLoading(nodex.parents[index]);
+		if(node.status!='loaded' && node.status!='error'){
+			if(!hasDependencies(node)){
+				node.status='loaded';
+				node.content();
+				checkParentsLoading(node);
+			}else{
+				var loadedChildren=0;
+				for(var index;index<node.children.length;index++){
+					if(node.children[index].status=='error'){
+						node.status="error";
+						checkParentsLoading(node);
+						break;
+					}else if(node.children[index].status=='loaded'){
+						loadedChildren++;
+					}
+				}
+				if(laodedChildren==node.children.length){
+					node.status='loaded';
+					node.content();
+					checkParentsLoading(node);
 				}
 			}
-		}else{
-			
 		}
-			//check dependencies status.
-			//...announce(node);
-		
-		
-		
-		/*If node status changes then call all callbacks of parents.*/
-		
-		
-		
-		
-		
-	}
-	/*Registers a callback function with a node. Children will call the callbacks when their status changes.*/
-	var callbackNode=function(node){
-		if(node.callbacks==null){
-			node.callbacks=[function(){checkLoading(node)}];
-		}else{
-			node.callbacks.push(function(){checkLoading(node));
-		}
-	}
-	/*Adds a callback function to a loading package, so you can hookup multiple scripts that are dependent on
-	the same files.*/
-	var callback=function(package, callback){
-		
 	}
 	/*Parses the given string to a filepath.*/
 	var parse=function(package){
@@ -93,9 +88,7 @@ Dependency=new function(){
 			/*No dependencies either, just run content.*/
 			settings.content();
 		}else{
-			/*Anonymous parent node will control loading of its children.*/
-			callbackNode(parentNode);
-			/*There are dependencies. Search for them in the tree and add nodes if they do not exist. If they exist, add callbacks only.*/
+			/*There are dependencies. Search for them in the tree and add nodes if they do not exist.*/
 			for(var index=0;index<settings.dependencies.length;index++){
 				var node;
 				if((node=namespaceNode(settings.dependencies[index]))==null){
@@ -123,7 +116,7 @@ Dependency=new function(){
 					if(node.status=='loading'){
 						addParent(node,parentNode);
 					}else{
-						announce(node);
+						checkLoading(node);
 					}
 				}
 			}
