@@ -36,7 +36,7 @@ Dependency=new function(){
 	}
 	var checkParentsLoading=function(node){
 		if(node.parents!=null){
-			for(var index;index<node.parents.length;index++){
+			for(var index=0;index<node.parents.length;index++){
 				checkLoading(nodex.parents[index]);
 			}
 		}		
@@ -51,7 +51,7 @@ Dependency=new function(){
 				checkParentsLoading(node);
 			}else{
 				var loadedChildren=0;
-				for(var index;index<node.children.length;index++){
+				for(var index=0;index<node.children.length;index++){
 					if(node.children[index].status=='error'){
 						node.status="error";
 						checkParentsLoading(node);
@@ -72,14 +72,23 @@ Dependency=new function(){
 	var parse=function(package){
 		return package.split('.').join('/')+'.js';
 	}
-	/*Searches for a specific node that was loaded and returns it.*/
+	/*Searches for a specific node that was loaded and returns it. Recursive.*/
 	var namespaceNode=function(package){
-		
+		namespaceNodeStep(package,root);
 	}
-	/*Calls callback functions registered for a specific node when a file is loaded or when an error during
-	loading happens.*/
-	var announce=function(node){
-		
+	var namespaceNodeStep=function(package,currentNode){
+		if(currentNode.package==package){
+			return currentNode;
+		}else if(currentNode.children!=null){
+			for(var index=0;index<<currentNode.children.length;index++){
+				var child=namespaceNodeStep(package,currentNode.children[index]);
+				if(child!=null){
+					return child;
+				}
+			}
+		}else{
+			return null;
+		}
 	}
 	/*Having a parent node created, manage all the necessary dependencies.*/
 	var completeTree=function(parentNode,settings){
@@ -158,7 +167,12 @@ Dependency=new function(){
 	/*Searches for specified package. If it has been loaded successfully, then the constructor contained in the loaded package
 	is returned.*/
 	this.namespace=function(package){
-		
+		var node=namespaceNode(package);
+		if(node!=null){
+			return node.content;
+		}else{
+			return null;
+		}
 	}
 	/*Removes a loaded package along with it's dependencies if they are not used in other packages. Stops loading of those packages if it's necessary.
 	If a user requests one of them again, the required files will be loaded again.*/
