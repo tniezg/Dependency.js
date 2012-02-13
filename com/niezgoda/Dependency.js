@@ -1,4 +1,3 @@
-/**/
 Dependency=new function(){
 	//private variables
 	/*Contains information about loaded, loading and problems when loading packages and it's dependencies.
@@ -24,7 +23,7 @@ Dependency=new function(){
 	/*Creates a node and attaches it to the tree. If called without any parameters then the node will be completely detached from the tree.
 	If baseNode is null, then attached to the root directly.*/
 	var addNode=function(baseNode,package){
-		var node=new Object();
+		var node={};
 		var base;
 		if(baseNode==null){
 			base=root;
@@ -33,11 +32,12 @@ Dependency=new function(){
 		}
 		node.package=package;
 		addParent(node,base);
+		return node;
 	}
 	var checkParentsLoading=function(node){
 		if(node.parents!=null){
 			for(var index=0;index<node.parents.length;index++){
-				checkLoading(nodex.parents[index]);
+				checkLoading(node.parents[index]);
 			}
 		}		
 	}
@@ -47,7 +47,11 @@ Dependency=new function(){
 		if(node.status!='loaded' && node.status!='error'){
 			if(!hasDependencies(node)){
 				node.status='loaded';
-				node.content();
+				/*root doesn't have content, so check if it exists. Other nodes will have content.*/
+				if(node.content!=null){
+					/*If an object, it will executed and the constructor returned.*/
+					node.content=node.content();
+				}
 				checkParentsLoading(node);
 			}else{
 				var loadedChildren=0;
@@ -60,9 +64,10 @@ Dependency=new function(){
 						loadedChildren++;
 					}
 				}
-				if(laodedChildren==node.children.length){
+				if(loadedChildren==node.children.length){
 					node.status='loaded';
-					node.content();
+					/*If an object, it will executed and the constructor returned.*/
+					node.content=node.content();
 					checkParentsLoading(node);
 				}
 			}
@@ -74,13 +79,13 @@ Dependency=new function(){
 	}
 	/*Searches for a specific node that was loaded and returns it. Recursive.*/
 	var namespaceNode=function(package){
-		namespaceNodeStep(package,root);
+		return namespaceNodeStep(package,root);
 	}
 	var namespaceNodeStep=function(package,currentNode){
 		if(currentNode.package==package){
 			return currentNode;
 		}else if(currentNode.children!=null){
-			for(var index=0;index<<currentNode.children.length;index++){
+			for(var index=0;index<currentNode.children.length;index++){
 				var child=namespaceNodeStep(package,currentNode.children[index]);
 				if(child!=null){
 					return child;
@@ -93,7 +98,7 @@ Dependency=new function(){
 	/*Having a parent node created, manage all the necessary dependencies.*/
 	var completeTree=function(parentNode,settings){
 		parentNode.content=settings.content;
-		if(!settings.dependencies){
+		if(settings.dependencies==null){
 			/*No dependencies either, just run content.*/
 			settings.content();
 		}else{
@@ -107,11 +112,16 @@ Dependency=new function(){
 					/*Load file.*/
 					jQuery.ajax({
 						dataType:'script',
+						/*Set context to node do it can be received by the complete function easily.
+						I problems with using the node local variable directly inside complete when there were many nodes created.
+						Only the last one was references in all the places.*/
+						context:node,
 						url:parse(settings.dependencies[index]),
 						complete:function(data){
-							/*Check if the dependency created any new nodes(deeper dependencies). If not then check the status to "loaded"*/
-							if(!hasDependencies(node)){
-								checkLoading(node);
+							alert(this.package);
+							/*Check if the dependency created any new nodes (deeper dependencies). If not then check the status to "loaded"*/
+							if(!hasDependencies(this)){
+								checkLoading(this);
 							}
 						},
 						error:function(jqXHR,textStatus,errorThrown){
@@ -137,8 +147,20 @@ Dependency=new function(){
 	and they will be loaded asynchronously, all at once. After loading completes or fails the caller gets notified
 	and may act according to the result of the operation.*/
 	this.resolve=function(settings){
+		/*Assing null values to undefined variables.*/
+		if(!settings){
+			/*No settings defined, don't do a thing.*/
+			return;
+		}else{
+			if(!settings.content)
+				settings.content=function(){};
+			if(!settings.base)
+				settings.base=null;
+			if(!settings.dependencies)
+				settings.dependencies=null;
+		}
 		/*settings:base,content,dependencies*/
-		if(!settings.base || settings.base==null){
+		if(settings.base==null){
 			/*settings.base not specified, the script run after all dependencies are loaded is not a constructor
 			but a script. Scripts loading process unlike constructors cannot be traced by multiple callbacks. It's not
 			kept on the tree at all but executed immediately and cannot be executed again. That is why we will add callbacks
@@ -176,7 +198,7 @@ Dependency=new function(){
 	}
 	/*Removes a loaded package along with it's dependencies if they are not used in other packages. Stops loading of those packages if it's necessary.
 	If a user requests one of them again, the required files will be loaded again.*/
-	this unload=function(package){
+	this.unload=function(package){
 		
 	}
 }();
