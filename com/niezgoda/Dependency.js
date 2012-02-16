@@ -2,7 +2,9 @@ Dependency=new function(){
 	//private variables
 	/*Contains information about loaded, loading and problems when loading packages and it's dependencies.
 	Every file loaded will be added to the tree only once.*/
-	var root={status:'loaded',content:null,parents:null,children:null,package:null};
+	/*childrenSize is needed because some children return immediately, before all children nodes are created.
+	Checking the children.length value would then be smaller than the actual number of children.*/
+	var root={status:'loaded',content:null,parents:null,children:null,package:null,childrenSize:0};
 	//private functions
 	/*Adds a parent to an existing node. When node changes then all its parents' callbacks will be called using checkLoading.*/
 	var addParent=function(node,parent){
@@ -31,13 +33,17 @@ Dependency=new function(){
 			base=baseNode;
 		}
 		node.package=package;
+		node.childrenSize=0;
 		addParent(node,base);
 		return node;
 	}
 	var checkParentsLoading=function(node){
 		if(node.parents!=null){
 			for(var index=0;index<node.parents.length;index++){
-				checkLoading(node.parents[index]);
+				/*If parent already loaded, stop propagation up the tree*/
+				if(node.parents[index].status!="loaded"){
+					checkLoading(node.parents[index]);
+				}
 			}
 		}		
 	}
@@ -64,13 +70,18 @@ Dependency=new function(){
 						loadedChildren++;
 					}
 				}
-				if(loadedChildren==node.children.length){
+				if(loadedChildren==node.childrenSize){
 					node.status='loaded';
 					/*If an object, it will executed and the constructor returned.*/
 					node.content=node.content();
 					checkParentsLoading(node);
 				}
 			}
+		}else{
+			/*Notify parents that want this node when it's already loaded. This happens
+			when you need a node later somewhere but you're not sure whether it's already
+			loaded or not.*/
+			checkParentsLoading(node);
 		}
 	}
 	/*Parses the given string to a filepath.*/
@@ -102,6 +113,7 @@ Dependency=new function(){
 			/*No dependencies either, just run content.*/
 			settings.content();
 		}else{
+			parentNode.childrenSize=settings.dependencies.length;
 			/*There are dependencies. Search for them in the tree and add nodes if they do not exist.*/
 			for(var index=0;index<settings.dependencies.length;index++){
 				var node;
@@ -118,7 +130,6 @@ Dependency=new function(){
 						context:node,
 						url:parse(settings.dependencies[index]),
 						complete:function(data){
-							alert(this.package);
 							/*Check if the dependency created any new nodes (deeper dependencies). If not then check the status to "loaded"*/
 							if(!hasDependencies(this)){
 								checkLoading(this);
@@ -135,6 +146,7 @@ Dependency=new function(){
 					if(node.status=='loading'){
 						addParent(node,parentNode);
 					}else{
+						addParent(node,parentNode);
 						checkLoading(node);
 					}
 				}
