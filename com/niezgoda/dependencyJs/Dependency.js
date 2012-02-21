@@ -1,11 +1,40 @@
 Dependency=new function(){
 	//private variables
+	var ajaxQuery=[];
+	var ajaxLimit=2;
 	/*Contains information about loaded, loading and problems when loading packages and it's dependencies.
 	Every file loaded will be added to the tree only once.*/
 	/*childrenSize is needed because some children return immediately, before all children nodes are created.
 	Checking the children.length value would then be smaller than the actual number of children.*/
+	var _basePath='.';
 	var root={status:'loaded',content:null,parents:null,children:null,package:null,childrenSize:0};
 	//private functions
+	var addRequest=function(params){
+		var queryObject={
+			params:params,
+			id:(ajaxQuery.length==0?0:ajaxQuery[ajaxQuery.length-1].id+1)
+		};
+		ajaxQuery.push(queryObject);
+		tryQuery(ajaxQuery.length-1);
+	}
+	var tryQuery=function(index){
+		var queryObject=ajaxQuery[index];
+		if(index<=ajaxLimit-1){
+			if(index<=ajaxQuery.length-1){
+				jQuery.ajax(ajaxQuery[index].params)
+					.complete(function(){removeRequest(queryObject.id)});
+			}
+		}
+	}
+	var removeRequest=function(id){
+		for(var index=0;index<ajaxQuery.length;index++){
+			if(ajaxQuery[index].id==id){
+				ajaxQuery.splice(index,1);
+				tryQuery(ajaxLimit-1);
+				break;
+			}
+		}
+	}
 	/*Adds a parent to an existing node. When node changes then all its parents' callbacks will be called using checkLoading.*/
 	var addParent=function(node,parent){
 		if(node.parents==null){
@@ -32,6 +61,7 @@ Dependency=new function(){
 		}else{
 			base=baseNode;
 		}
+		node.children=null;
 		node.package=package;
 		node.childrenSize=0;
 		addParent(node,base);
@@ -86,7 +116,7 @@ Dependency=new function(){
 	}
 	/*Parses the given string to a filepath.*/
 	var parse=function(package){
-		return package.split('.').join('/')+'.js';
+		return _basePath+'/'+package.split('.').join('/')+'.js';
 	}
 	/*Searches for a specific node that was loaded and returns it. Recursive.*/
 	var namespaceNode=function(package){
@@ -116,13 +146,13 @@ Dependency=new function(){
 			parentNode.childrenSize=settings.dependencies.length;
 			/*There are dependencies. Search for them in the tree and add nodes if they do not exist.*/
 			for(var index=0;index<settings.dependencies.length;index++){
-				var node;
-				if((node=namespaceNode(settings.dependencies[index]))==null){
+				var node=namespaceNode(settings.dependencies[index]);
+				if(node==null){
 					/*This package was not requested yet, create a node for it and load it.*/
 					node=addNode(parentNode,settings.dependencies[index]);
 					node.status='loading';
 					/*Load file.*/
-					jQuery.ajax({
+					addRequest({
 						dataType:'script',
 						/*Set context to node do it can be received by the complete function easily.
 						I problems with using the node local variable directly inside complete when there were many nodes created.
@@ -136,7 +166,7 @@ Dependency=new function(){
 							}
 						},
 						error:function(jqXHR,textStatus,errorThrown){
-							settings.dependencies[index].status="error";
+							this.status='error';
 							checkLoading(node);
 						}
 					});
@@ -188,7 +218,7 @@ Dependency=new function(){
 				/*settings.base not on the tree yet. Add it and load. Some of it's children might already be present on the
 				tree, so check each of them and add the missing ones. For others - check if they're loading and either attach
 				a callback or just make them announce that they're already loaded or had an error loading.*/
-				parentNode=addNode(null,settings.base);
+				parentNode=addNode(null,settings.base);	
 			}
 			completeTree(parentNode,settings);
 		}
@@ -205,12 +235,20 @@ Dependency=new function(){
 		if(node!=null){
 			return node.content;
 		}else{
-			return null;
+			throw "Script not loaded.";
 		}
 	}
 	/*Removes a loaded package along with it's dependencies if they are not used in other packages. Stops loading of those packages if it's necessary.
 	If a user requests one of them again, the required files will be loaded again.*/
 	this.unload=function(package){
 		
+	}
+	/*Sets root directory for all script references.*/
+	this.basePath=function(newValue){
+		if(!newValue){
+			return _basePath;
+		}else{
+			_basePath=newValue;
+		}
 	}
 }();
