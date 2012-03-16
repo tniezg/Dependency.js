@@ -62,9 +62,15 @@ Dependency=new function(){
 			base=baseNode;
 		}
 		node.children=null;
-		node.package=package;
+		if(package==null){
+			node.package=null;
+		}else{
+			node.package=package;
+		}
 		node.childrenSize=0;
+		node.parents=null;
 		addParent(node,base);
+
 		return node;
 	}
 	var checkParentsLoading=function(node){
@@ -122,6 +128,7 @@ Dependency=new function(){
 	var namespaceNode=function(package){
 		return namespaceNodeStep(package,root);
 	}
+	
 	var namespaceNodeStep=function(package,currentNode){
 		if(currentNode.package==package){
 			return currentNode;
@@ -132,9 +139,8 @@ Dependency=new function(){
 					return child;
 				}
 			}
-		}else{
-			return null;
 		}
+		return null;
 	}
 	/*Having a parent node created, manage all the necessary dependencies.*/
 	var completeTree=function(parentNode,settings){
@@ -208,7 +214,7 @@ Dependency=new function(){
 			kept on the tree at all but executed immediately and cannot be executed again. That is why we will add callbacks
 			to all of the dependencies and when they're all loaded execute the script.*/
 			/*Create an anonymous node. It will not be connected with the tree.*/
-			var parentNode=addNode();
+			var parentNode=addNode(null,null);
 			completeTree(parentNode,settings);
 		}else{
 			/*settings.base specified, search for it on the tree and either return the content if it's loaded or add a
