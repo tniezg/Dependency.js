@@ -12,16 +12,17 @@ Dependency=new function(){
 	var addRequest=function(params){
 		var queryObject={
 			params:params,
-			id:(ajaxQuery.length==0?0:ajaxQuery[ajaxQuery.length-1].id+1)
+			id:(ajaxQuery.length==0?0:ajaxQuery[ajaxQuery.length-1].id+1),
+			query:null
 		};
 		ajaxQuery.push(queryObject);
 		tryQuery(ajaxQuery.length-1);
 	}
 	var tryQuery=function(index){
-		var queryObject=ajaxQuery[index];
 		if(index<=ajaxLimit-1){
 			if(index<=ajaxQuery.length-1){
-				jQuery.ajax(ajaxQuery[index].params)
+				var queryObject=ajaxQuery[index];
+				queryObject.query=jQuery.ajax(ajaxQuery[index].params)
 					.complete(function(){removeRequest(queryObject.id)});
 			}
 		}
@@ -229,11 +230,7 @@ Dependency=new function(){
 			completeTree(parentNode,settings);
 		}
 	}
-	/*Stop ajax loading of dependent files for a specific script. Can be used for example when the user switches pages
-	before the current one containing some scripts has loaded. */
-	this.stop=function(package){
-		
-	}
+	
 	/*Searches for specified package. If it has been loaded successfully, then the constructor contained in the loaded package
 	is returned.*/
 	this.namespace=function(package){
@@ -244,10 +241,71 @@ Dependency=new function(){
 			throw "Script not loaded.";
 		}
 	}
+	
+	/*Stops the node and all it's subnodes from loading. This operation cannot be reversed. Used before deleting a node from the tree.
+	Only stops loading of children if they don't have other parents. Otherwise it ommits them.*/
+	var stopNode=function(node){
+		/*DFS*/
+		if(children!=null){
+			for(var nodeIndex=0;nodeIndex<node.children.length;nodeIndex++){
+				// Check parents. If any of them is not node, do nothing.
+				if(node.children[index].parents.length==1){
+					this.stopNode(node.children[nodeIndex]);
+				}
+			}
+		}
+
+		if(node.status=="loading"){
+			var queryIndex=0;
+			while(queryIndex<this.ajaxLimit && queryIndex<this.ajaxQuery.length){
+				if(this.ajaxQuery[queryIndex].params.context==node){
+					this.ajaxQuery[queryIndex].query.abort();
+				}
+				queryIndex++;
+			}
+		}
+	}
+	
+	var removeNode=function(node){
+		if(children!=null){
+			for(var nodeIndex=0;nodeIndex<node.children.length;nodeIndex++){
+				//Check parents. If any of them is not node, do nothing.
+				if(node.children[index].parents.length!=1){
+					for(var parentIndex=0;parentIndex<node.children[nodeIndex].parents.length;parentIndex++){
+						if(node.children[nodeIndex].parents[parentIndex]==node){
+							node.children[index].parents.splice(parentIndex,1);
+						}
+					}
+				}
+				// Ignore if there are other parents that need this child.
+			}
+		}
+		
+		
+		
+		/*Remove branch from parents.*/
+		if(node.parents!=null && node.parents.length==1 && node.parents[0]==this.root){
+			//Find node in root's children and remove it.
+			for(var childIndex=0;childIndex<this.root.children.length;childIndex++){
+				if(this.root.children[childIndex]==node){
+					this.root.children.splice(childIndex,1);
+					/*Stop loading of branch.*/
+					this.stopNode(node);
+					break;
+				}
+			}
+		}else{
+			throw "Only topmost nodes can be removed.";
+		}
+	}
+	
 	/*Removes a loaded package along with it's dependencies if they are not used in other packages. Stops loading of those packages if it's necessary.
 	If a user requests one of them again, the required files will be loaded again.*/
 	this.unload=function(package){
-		
+		var node=namespaceNode(package);
+		if(node!=null){
+			removeNode(node);
+		}
 	}
 	/*Sets root directory for all script references.*/
 	this.basePath=function(newValue){
