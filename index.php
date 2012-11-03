@@ -26,7 +26,8 @@
 		<a href="#" id="button1">No dependencies and no base.</a><br/>
 		<a href="#" id="button2">Single file dependency.</a><br/>
 		<a href="#" id="button3">Multiple file dependencies.</a><br/>
-		<a href="#" id="button4">More complicated file dependencies.</a>
+		<a href="#" id="button4">More complicated file dependencies.</a><br/>
+		<a href="#" id="button5">Remove loaded classes.</a>
 	</div>
 </body>
 </html>

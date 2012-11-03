@@ -1,4 +1,4 @@
-Dependency.resolve({dependencies:['jQuery'],content:function(){
+Dependency.resolve({base:'examples',dependencies:['jQuery'],content:function(){
 	$('#button1').click(function(){
 		Dependency.resolve({content:function(){
 			alert('This is a script that doesn\'t have dependencies.');
@@ -27,5 +27,10 @@ Dependency.resolve({dependencies:['jQuery'],content:function(){
 			new (Dependency.namespace('com.niezgoda.dependencyExample.Foo4'))().foo4();
 		}});
 		return false;
+	});
+	
+	$('#button5').click(function(){
+		Dependency.unload('examples');
+		
 	});
 }});

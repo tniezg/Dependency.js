@@ -7,7 +7,7 @@ Dependency=new function(){
 	/*childrenSize is needed because some children return immediately, before all children nodes are created.
 	Checking the children.length value would then be smaller than the actual number of children.*/
 	var _basePath='.';
-	var root={status:'loaded',content:null,parents:null,children:null,package:null,childrenSize:0};
+	var root={status:'loaded',content:null,parents:null,children:null,package:'root',childrenSize:0};
 	//private functions
 	var addRequest=function(params){
 		var queryObject={
@@ -250,16 +250,16 @@ Dependency=new function(){
 			for(var nodeIndex=0;nodeIndex<node.children.length;nodeIndex++){
 				// Check parents. If any of them is not node, do nothing.
 				if(node.children[index].parents.length==1){
-					this.stopNode(node.children[nodeIndex]);
+					stopNode(node.children[nodeIndex]);
 				}
 			}
 		}
 
 		if(node.status=="loading"){
 			var queryIndex=0;
-			while(queryIndex<this.ajaxLimit && queryIndex<this.ajaxQuery.length){
-				if(this.ajaxQuery[queryIndex].params.context==node){
-					this.ajaxQuery[queryIndex].query.abort();
+			while(queryIndex<ajaxLimit && queryIndex<ajaxQuery.length){
+				if(ajaxQuery[queryIndex].params.context==node){
+					ajaxQuery[queryIndex].query.abort();
 				}
 				queryIndex++;
 			}
@@ -267,31 +267,34 @@ Dependency=new function(){
 	}
 	
 	var removeNode=function(node){
-		if(children!=null){
-			for(var nodeIndex=0;nodeIndex<node.children.length;nodeIndex++){
-				//Check parents. If any of them is not node, do nothing.
-				if(node.children[index].parents.length!=1){
-					for(var parentIndex=0;parentIndex<node.children[nodeIndex].parents.length;parentIndex++){
-						if(node.children[nodeIndex].parents[parentIndex]==node){
-							node.children[index].parents.splice(parentIndex,1);
+		/*Remove branch from parents.*/
+		alert(node.parents!=null);
+		alert(node.parents.length==1);
+		alert(node.parents[0].package);
+		if(node.parents!=null && node.parents.length==1 && node.parents[0]==root){
+			alert('asd');
+			//Find node in root's children and remove it.
+			for(var childIndex=0;childIndex<root.children.length;childIndex++){
+				if(root.children[childIndex]==node){
+					alert('removing node');
+					root.children.splice(childIndex,1);
+					/*Stop loading of branch.*/
+					stopNode(node);
+					break;
+				}
+			}
+			
+			if(node.children!=null){
+				for(var nodeIndex=0;nodeIndex<node.children.length;nodeIndex++){
+					//Check parents. If any of them is not node, do nothing.
+					if(node.children[nodeIndex].parents.length!=1){
+						for(var parentIndex=0;parentIndex<node.children[nodeIndex].parents.length;parentIndex++){
+							if(node.children[nodeIndex].parents[parentIndex]==node){
+								node.children[index].parents.splice(parentIndex,1);
+							}
 						}
 					}
-				}
-				// Ignore if there are other parents that need this child.
-			}
-		}
-		
-		
-		
-		/*Remove branch from parents.*/
-		if(node.parents!=null && node.parents.length==1 && node.parents[0]==this.root){
-			//Find node in root's children and remove it.
-			for(var childIndex=0;childIndex<this.root.children.length;childIndex++){
-				if(this.root.children[childIndex]==node){
-					this.root.children.splice(childIndex,1);
-					/*Stop loading of branch.*/
-					this.stopNode(node);
-					break;
+					// Ignore if there are other parents that need this child.
 				}
 			}
 		}else{
